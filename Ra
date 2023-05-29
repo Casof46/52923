@@ -1,0 +1,101 @@
+use NORTHWND1
+
+alter procedure USPInsertCategory
+@CategoryName nvarchar(15),
+@Description ntext
+as
+begin
+	insert into Categories ( CategoryName, Description)
+	values ( @CategoryName, @Description)
+
+end;
+go;
+select * from Categories
+
+exec USPInsertCategory  'Others', 'dempsy roll'
+
+
+create procedure USPDropCategory
+CategoryID as @CategoryID
+as
+begin	
+	drop into Categories (@CategoryID)
+	values ( @CategoryID)
+
+end;
+
+alter procedure USPDeleteCategory
+@CategoryID int,
+@Quantity int output
+as
+begin
+	select @Quantity = count(*) from Products where CategoryID = @CategoryID
+
+	if @Quantity = 0
+	begin
+		delete from Categories
+		where CategoryID = @CategoryID;
+		print ('Se elimino la categoria')
+		end
+	else 
+	print ('No se puede eliminar la categoria por estar siendo utilizada')
+end;
+go;
+
+declare @q int
+exec USPDeleteCategory 4, @Quantity =@q output
+print @q
+
+--------------------------------------------------------------------------
+--------------------------------------------------------------------------
+alter procedure USPUnitsInStock
+as
+begin
+	declare @ProductName nvarchar(40)
+	declare @UnitsInStock smallint
+	declare @TotalUnitsInStock smallint =0 
+
+	declare productCursor cursor for
+	select ProductName, UnitsInStock 
+	from Products
+
+	open ProductCursor
+
+	fetch ProductCursor into @ProductName, @UnitsInStock
+	while(@@FETCH_STATUS=0)
+	begin
+		print (concat(@Productname, ': ', @UnitsInStock))
+		set @TotalUnitsInStock+=@UnitsInStock
+		fetch ProductCursor into @ProductName, @UnitsInStock
+	end
+
+	print (concat('El total de unidades es: ', @TotalUnitsInStock))
+	close ProductCursor
+	deallocate ProductCursor
+end;
+go;
+
+exec USPUnitsInStock
+go;
+
+create trigger TXCategories ON Categories 
+for insert
+as
+print ('Se ingresó un nuevo registro')
+
+exec USPInsertCategory 'Prueba', 'Prueba'
+go;
+
+create trigger TXCategoriesInsert On Categories
+for insert
+as
+if(select count(*) from inserted, Categories
+where inserted.CategoryName =Categories.CategoryName)>1
+begin
+	Rollback transaction
+	print('El nombre de la categoría se encuentra registrado')
+end
+else
+	print('La categoria fue ingresada')
+
+select * from Categories
